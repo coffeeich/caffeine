@@ -338,4 +338,4 @@ usage = ->
 
 # Print the `--version` message and exit.
 version = ->
-  printLine "CoffeeScript version #{CoffeeScript.VERSION}"
+  printLine "Caffeine version #{CoffeeScript.VERSION}"
