@@ -18,7 +18,7 @@ Module       = require 'module'
 # REPL Setup
 
 # Config
-REPL_PROMPT = 'coffee> '
+REPL_PROMPT = 'caffeine> '
 REPL_PROMPT_MULTILINE = '------> '
 REPL_PROMPT_CONTINUATION = '......> '
 enableColours = no

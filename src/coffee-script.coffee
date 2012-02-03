@@ -20,8 +20,8 @@ if require.extensions
     content = compile stripBOM(fs.readFileSync filename, 'utf8'), {filename}
     module._compile content, filename
 
-# The current CoffeeScript version number.
-exports.VERSION = '1.3.3'
+# The current Caffeine version number.
+exports.VERSION = '0.1.0'
 
 # Words that cannot be used as identifiers in CoffeeScript code
 exports.RESERVED = RESERVED
