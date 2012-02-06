@@ -1,0 +1,8 @@
+# @see http://about.travis-ci.org/docs/user/build-configuration/
+language: node_js
+node_js:
+ - 0.8
+script: "bin/cake test"
+branches:
+  only:
+    - master
