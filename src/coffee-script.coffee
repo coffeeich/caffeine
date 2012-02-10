@@ -24,7 +24,7 @@ else if require.registerExtension
   require.registerExtension '.coffee', (content) -> compile content
 
 # The current Caffeine version number.
-exports.VERSION = '0.1.0'
+exports.VERSION = '0.1.1'
 
 # Words that cannot be used as identifiers in CoffeeScript code
 exports.RESERVED = RESERVED
