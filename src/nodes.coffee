@@ -1914,16 +1914,16 @@ exports.If = class If extends Base
 #### Package
 
   # Create packages with o without classes
-  #   package "org.company.namespace"
+  #   package org.company.namespace
   #     class Main
   #       constructor: (@a) ->
   #
   #     class Help
   #       constructor: (@b) ->
   #
-  #   package "org.company.empty"
+  #   package org.company.empty
   #
-  #   package "org.company.full"
+  #   package org.company.full
   #     class Yo
   #       act: -> alert "Yo!"
   #
@@ -1943,10 +1943,15 @@ exports.If = class If extends Base
 
         properties.push new Assign(new Value(new Literal(className)), item, 'object')
 
-      if properties.length is 0
-        return "#{utility 'namespace'}(#{@namespace.compile(o)}, {})"
+      root = @namespace.shift().compile(o)
+      Scope.root.assign root, "{}"
 
-      "#{utility 'namespace'}(#{@namespace.compile(o)}, #{new Obj(properties, yes).compile(o)})"
+      namespace = "[#{@namespace.join(",").trim()}]"
+
+      if properties.length is 0
+        return "#{utility 'namespace'}(#{root}, #{namespace}, {})"
+
+      "#{utility 'namespace'}(#{root}, #{namespace}, #{new Obj(properties, yes).compile(o)})"
 
 # Faux-Nodes
 # ----------
@@ -2002,7 +2007,7 @@ UTILITIES =
 
   # Create a function bound to the current value of "this".
   bind: -> '''
-    function(fn, me){ return function(){ return fn.apply(me, arguments); }; }
+    function(fn, me) { return function(){ return fn.apply(me, arguments); }; }
   '''
 
   # Discover if an item is in an array.
@@ -2014,14 +2019,9 @@ UTILITIES =
   hasProp: -> '{}.hasOwnProperty'
   slice  : -> '[].slice'
 
-  # Creates namespace `ns`, then merge hash set and namespace.
-  # Example:
-  #   namespace = function(ns, hashSet) {...}
-  #   namespace("org.company.namespace", {key: "value"});
-  #   org.company.namespace.key === "value"; // true
-  # Returns namespace `ns` (ref to org.company.namespace if it was "org.company.namespace").
+  # Creates namespace
   namespace: -> '''
-    function(ns, hashSet){ if (!(hashSet instanceof Object) || hashSet instanceof Array || typeof hashSet === "function") {return null;} var obj = this,nsa = ns.split(".");for (var i = 0, l = nsa.length; i < l; i++) { var pack = nsa[i];obj = obj[pack] || (obj[pack] = {}); } for (var key in hashSet) { obj[key] = hashSet[key]; } return obj; }
+    function(root, array, hash) { for (var i = 0, l = array.length; i < l; i++) { var pack = array[i];root = root[pack] || (root[pack] = {}); } for (var key in hash) root[key] = hash[key]; return root; }
   '''
 
 # Levels indicate a node's position in the AST. Useful for knowing if

@@ -292,11 +292,17 @@ grammar =
     o 'CLASS SimpleAssignable EXTENDS Expression Block', -> new Class $2, $4, $5
   ]
 
+  # A package literal identifier.
+  PackageLiteral: [
+    o 'IDENTIFIER',                             -> [new Literal $1]
+    o 'IDENTIFIER . PackageLiteral',            -> [new Literal $1].concat $3
+  ]
+
   # Package definitions have optional classes definitions.
   Package: [
-    o 'PACKAGE STRING',                         -> new Package new Literal($2), []
-    o 'PACKAGE STRING INDENT
-       PackageArgList OUTDENT',                 -> new Package new Literal($2), $4
+    o 'PACKAGE PackageLiteral',                 -> new Package $2, []
+    o 'PACKAGE PackageLiteral INDENT
+       PackageArgList OUTDENT',                 -> new Package $2, $4
   ]
 
   PackageArgList: [
