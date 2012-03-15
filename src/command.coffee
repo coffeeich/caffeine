@@ -213,10 +213,9 @@ watch = (source, base) ->
     watchList = []
 
     deepWatch source, watchList, ->
-      process.nextTick ->
-        for filename in watchList
-          do (filename) ->
-            watchers[filename] = fs.watch filename, -> compile filename
+      for filename in watchList
+        do (filename) ->
+          watchers[filename] = fs.watch filename, -> compile filename
 
   deepWatch = (filename, watchList, callback) ->
     return no if filename in watchList
@@ -235,13 +234,20 @@ watch = (source, base) ->
 
             return callback() if err?.code is 'ENOENT'
 
-            nodes = CoffeeScript.nodes code.toString()
-
             importExists = no
 
-            for expr in nodes.expressions when expr instanceof Import
-              if deepWatch expr.filename({filename}), watchList, callback
-                importExists = yes
+            try
+              nodes = CoffeeScript.nodes code.toString()
+            catch ex
+              # ignore parse errors on this step
+
+            for expr in nodes?.expressions or [] when expr instanceof Import
+              try
+                filepath = expr.filename({filename})
+              catch ex
+                # ignore resolve path errors on this step
+
+              importExists = yes if filepath and deepWatch filepath, watchList, callback
 
             callback() unless importExists
 
