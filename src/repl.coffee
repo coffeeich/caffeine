@@ -2,7 +2,7 @@
 # and evaluates it. Good for simple tests, or poking around the **Node.js** API.
 # Using it looks like this:
 #
-#     coffee> console.log "#{num} bottles of beer" for num in [99..1]
+#     caffeine> console.log "#{num} bottles of beer" for num in [99..1]
 
 # Start by opening up `stdin` and `stdout`.
 stdin = process.openStdin()
@@ -150,7 +150,7 @@ else
 multilineMode = off
 
 # Handle multi-line mode switch
-repl.input.on 'keypress', (char, key) ->
+repl.input.on 'keypress', (ch, key) ->
   # test for Ctrl-v
   return unless key and key.ctrl and not key.meta and not key.shift and key.name is 'v'
   cursorPos = repl.cursor
@@ -164,7 +164,7 @@ repl.input.on 'keypress', (char, key) ->
   repl.output.cursorTo newPrompt.length + (repl.cursor = cursorPos)
 
 # Handle Ctrl-d press at end of last line in multiline mode
-repl.input.on 'keypress', (char, key) ->
+repl.input.on 'keypress', (ch, key) ->
   return unless multilineMode and repl.line
   # test for Ctrl-d
   return unless key and key.ctrl and not key.meta and not key.shift and key.name is 'd'

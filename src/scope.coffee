@@ -13,6 +13,9 @@ exports.Scope = class Scope
   # The top-level **Scope** object.
   @root: null
 
+  # The poof-level **Scope** object.
+  @poof: null
+
   # Initialize a scope with its parent, for lookups up the chain,
   # as well as a reference to the **Block** node it belongs to, which is
   # where it should declare its variables, and a reference to the function that
@@ -20,7 +23,9 @@ exports.Scope = class Scope
   constructor: (@parent, @expressions, @method) ->
     @variables = [{name: 'arguments', type: 'arguments'}]
     @positions = {}
-    Scope.root = this unless @parent
+    unless @parent
+      Scope.root = this
+      Scope.poof = new Scope this
 
   # Adds a new variable or overrides an existing one.
   add: (name, type, immediate) ->

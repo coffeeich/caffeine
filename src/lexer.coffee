@@ -204,6 +204,8 @@ exports.Lexer = class Lexer
   # to distinguish from division, so we borrow some basic heuristics from
   # JavaScript and Ruby.
   regexToken: ->
+    # hook backslashes in import path
+    return 0 if @lockImport
     return 0 if @chunk.charAt(0) isnt '/'
     if match = HEREGEX.exec @chunk
       length = @heregexToken match
@@ -221,6 +223,8 @@ exports.Lexer = class Lexer
 
   # Matches multiline extended regular expressions.
   heregexToken: (match) ->
+    # hook backslashes in import path
+    return 0 if @lockImport
     [heregex, body, flags] = match
     if 0 > body.indexOf '#{'
       re = body.replace(HEREGEX_OMIT, '').replace(/\//g, '\\/')
@@ -349,7 +353,9 @@ exports.Lexer = class Lexer
     if value is ';'
       @seenFor = no
       tag = 'TERMINATOR'
-    else if value in MATH            then tag = 'MATH'
+    else if value in MATH
+      # hook backslashes in import path
+      tag = 'MATH' unless @lockImport
     else if value in COMPARE         then tag = 'COMPARE'
     else if value in COMPOUND_ASSIGN then tag = 'COMPOUND_ASSIGN'
     else if value in UNARY           then tag = 'UNARY'
@@ -512,6 +518,8 @@ exports.Lexer = class Lexer
 
   # Add a token to the results, taking note of the line number.
   token: (tag, value) ->
+    @lockImport = yes  if tag is 'IMPORT'
+    @lockImport = no   if tag is 'TERMINATOR'
     @tokens.push [tag, value, @line]
 
   # Peek at a tag in the current token stream.
@@ -553,11 +561,11 @@ JS_KEYWORDS = [
   'new', 'delete', 'typeof', 'in', 'instanceof'
   'return', 'throw', 'break', 'continue', 'debugger'
   'if', 'else', 'switch', 'for', 'while', 'do', 'try', 'catch', 'finally'
-  'class', 'extends', 'super'
+  'class', 'extends', 'super', 'package', 'import'
 ]
 
 # CoffeeScript-only keywords.
-COFFEE_KEYWORDS = ['undefined', 'then', 'unless', 'until', 'loop', 'of', 'by', 'when', 'package']
+COFFEE_KEYWORDS = ['undefined', 'then', 'unless', 'until', 'loop', 'of', 'by', 'when']
 
 COFFEE_ALIAS_MAP =
   and  : '&&'
@@ -578,8 +586,8 @@ COFFEE_KEYWORDS = COFFEE_KEYWORDS.concat COFFEE_ALIASES
 # to avoid having a JavaScript error at runtime.
 RESERVED = [
   'case', 'default', 'function', 'var', 'void', 'with', 'const', 'let', 'enum'
-  'export', 'import', 'native', '__hasProp', '__extends', '__slice', '__bind'
-  '__indexOf', '__namespace', 'implements', 'interface', 'private', 'protected'
+  'export', 'native', '__hasProp', '__extends', '__slice', '__bind', '__imports'
+  '__indexOf', 'implements', 'interface', 'private', 'protected'
   'public', 'static', 'yield'
 ]
 
