@@ -2079,8 +2079,7 @@ exports.Import = class Import extends Base
   filename: (o={}) ->
     location = "#{ (ns.compile o for ns in @searchPath).join "/" }.coffee"
 
-    dir = if o.filename is "repl" then "." else __dirname
-    dir = Path.dirname Path.resolve FileSystem.realpathSync(dir), o.filename
+    dir = Path.dirname Path.resolve FileSystem.realpathSync("."), o.filename
 
     if @isRelative
       FileSystem.realpathSync Path.resolve dir, location
@@ -2136,10 +2135,8 @@ exports.Import = class Import extends Base
     ""
 
   checkImports: (o, variable, file) ->
-    if Import.rootFile is "repl"
-      relative = file
-    else
-      relative = (Path.relative FileSystem.realpathSync(Import.rootFile), file).replace /^(\.\.\/|\.\.\\\\)/, ""
+    rel = if Import.rootFile is "repl" then "." else Import.rootFile
+    relative = (Path.relative FileSystem.realpathSync(rel), file).replace /^(\.\.\/|\.\.\\\\)/, ""
 
     if relative is ""
       literalKey = new Literal "\"#{ Path.basename file }\""
