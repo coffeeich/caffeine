@@ -2079,8 +2079,8 @@ exports.Import = class Import extends Base
   filename: (o={}) ->
     location = "#{ (ns.compile o for ns in @searchPath).join "/" }.coffee"
 
-    file = if o.filename is "repl" then ".coffee" else o.filename
-    dir  = Path.dirname Path.resolve __dirname, file
+    dir = if o.filename is "repl" then "." else __dirname
+    dir = Path.dirname Path.resolve FileSystem.realpathSync(dir), o.filename
 
     if @isRelative
       FileSystem.realpathSync Path.resolve dir, location
@@ -2094,7 +2094,9 @@ exports.Import = class Import extends Base
           FileSystem.realpathSync file
         catch ex
           if file is "/#{location}"
-            throw new Error "In #{o.filename}, ENOENT, no such file or directory '#{location}'"
+            error = new Error "ENOENT, no such file or directory '#{location}', started in #{dir}"
+            error.code = "ENOENT"
+            throw error
 
           search pathes.concat ".."
 
@@ -2134,7 +2136,10 @@ exports.Import = class Import extends Base
     ""
 
   checkImports: (o, variable, file) ->
-    relative = (Path.relative Import.rootFile, file).replace /^(\.\.\/|\.\.\\\\)/, ""
+    if Import.rootFile is "repl"
+      relative = file
+    else
+      relative = (Path.relative FileSystem.realpathSync(Import.rootFile), file).replace /^(\.\.\/|\.\.\\\\)/, ""
 
     if relative is ""
       literalKey = new Literal "\"#{ Path.basename file }\""
@@ -2199,22 +2204,25 @@ exports.Import = class Import extends Base
       "}"
 
     thisLit = new Literal "this"
-    ctor = new Code []
-    for property, value of properties
-      ctor.body.push new Assign new Value(thisLit, [ new Access new Literal property ]), value
 
-    for func in Import.properties
-      ctor.body.push new Call new Value(thisLit, [ new Access new Literal "put" ]), func
-    ctor.body.push new Literal "(function(a, b, c) { " +
+    code = new Code []
+
+    for property, value of properties
+      code.body.push new Assign new Value(thisLit, [ new Access new Literal property ]), value
+
+    for values in Import.properties
+      code.body.push new Call   new Value(thisLit, [ new Access new Literal "put" ]), values
+
+    code.body.push new Literal "(function(a, b, c) { " +
       "while (c = a.shift()) { " +
         "c[1](b[c[0]]); " +
       "} " +
     "})(this.delayed, this.list)"
 
-    ctor.body.push new Literal "this"
-    ctor.body.makeReturn()
-    ctor = new Value ctor, [new Access new Literal "call"]
-    call = new Call  ctor, [new Literal "{}"]
+    code.body.push new Literal "this"
+    code.body.makeReturn()
+    code = new Value code, [new Access new Literal "call"]
+    call = new Call  code, [new Literal "{}"]
     call.compile o
 
   @importedDeclaration: (o, variable) ->
