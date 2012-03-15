@@ -3,8 +3,13 @@
 # but some are created by other nodes as a method of code generation. To convert
 # the syntax tree into a string of JavaScript code, call `compile()` on the root.
 
+# for imports
+FileSystem = require 'fs'
+Path       = require 'path'
+
 {Scope} = require './scope'
-{RESERVED, STRICT_PROSCRIBED} = require './lexer'
+{Lexer, RESERVED, STRICT_PROSCRIBED} = require './lexer'
+{parser} = require './parser'
 
 # Import the helpers we plan to use.
 {compact, flatten, extend, merge, del, starts, ends, last, some} = require './helpers'
@@ -106,7 +111,7 @@ exports.Base = class Base
     null
 
   # `toString` representation of the node, for inspecting the parse tree.
-  # This is what `coffee --nodes` prints out.
+  # This is what `caffeine --nodes` prints out.
   toString: (idt = '', name = @constructor.name) ->
     tree = '\n' + idt + name
     tree += '?' if @soak
@@ -223,16 +228,16 @@ exports.Block = class Block extends Base
         # This is a nested block.  We don't do anything special here like enclose
         # it in a new scope; we just compile the statements in this block along with
         # our own
-        codes.push node.compileNode o
+        code = node.compileNode o
       else if top
         node.front = true
         code = node.compile o
         unless node.isStatement o
-          code = "#{@tab}#{code};"
-          code = "#{code}\n" if node instanceof Literal
-        codes.push code
+          code = "#{@tab}#{code};"  if code.length isnt 0
+          code = "#{code}\n"        if node instanceof Literal
       else
-        codes.push node.compile o, LEVEL_LIST
+        code = node.compile o, LEVEL_LIST
+      codes.push code unless code is ""
     if top
       if @spaced
         return "\n#{codes.join '\n\n'}\n"
@@ -279,15 +284,29 @@ exports.Block = class Block extends Base
     post = @compileNode o
     {scope} = o
     if scope.expressions is this
+      if scope is Scope.root
+        {poof} = Scope
+
+        opts = extend {}, o
+        opts.scope = poof
+
+        # expose packages declarations and imports assigns
+        poof.assign packages...   for packages in Package.flush opts
+        poof.assign imports...    if  imports = Import.flush opts
+
       declars = o.scope.hasDeclarations()
       assigns = scope.hasAssignments
-      if declars or assigns
+      poofs   = poof and poof.hasAssignments
+      if declars or assigns or poofs
         code += '\n' if i
         code += "#{@tab}var "
         if declars
           code += scope.declaredVariables().join ', '
-        if assigns
+        if poofs
           code += ",\n#{@tab + TAB}" if declars
+          code += poof.assignedVariables().join ",\n#{@tab + TAB}"
+        if assigns
+          code += ",\n#{@tab + TAB}" if declars or poofs
           code += scope.assignedVariables().join ",\n#{@tab + TAB}"
         code += ';\n'
     code + post
@@ -968,6 +987,12 @@ exports.Class = class Class extends Base
   # constructor, property assignments, and inheritance getting built out below.
   compileNode: (o) ->
     decl  = @determineName()
+
+    # hook class declaration when compile file with
+    # this class and importing this class through import another class,
+    # which imports this class :) yeah, it's complicated
+    return imported.compile o if imported = Import.importedDeclaration o, decl
+
     name  = decl or '_Class'
     name = "_#{name}" if name.reserved
     lname = new Literal name
@@ -1224,7 +1249,7 @@ exports.Code = class Code extends Base
     code  = 'function'
     code  += ' ' + @name if @ctor
     code  += '(' + params.join(', ') + ') {'
-    code  += "\n#{ @body.compileWithDeclarations o }\n#{@tab}" unless @body.isEmpty()
+    code  += "\n#{ @body.compileWithDeclarations(o).replace /\s+$/, "" }\n#{@tab}" unless @body.isEmpty()
     code  += '}'
     return @tab + code if @ctor
     if @front or (o.level >= LEVEL_ACCESS) then "(#{code})" else code
@@ -1512,7 +1537,7 @@ exports.Op = class Op extends Base
   # Mimic Python's chained comparisons when multiple comparison operators are
   # used sequentially. For example:
   #
-  #     bin/coffee -e 'console.log 50 < 65 > 10'
+  #     bin/caffeine -e 'console.log 50 < 65 > 10'
   #     true
   compileChain: (o) ->
     [@first.second, shared] = @first.second.cache o
@@ -1681,7 +1706,7 @@ exports.Parens = class Parens extends Base
     if expr instanceof Value and expr.isAtomic()
       expr.front = @front
       return expr.compile o
-    code = expr.compile o, LEVEL_PAREN
+    code = expr.compile(o, LEVEL_PAREN) or 'void 0'
     bare = o.level < LEVEL_OP and (expr instanceof Op or expr instanceof Call or
       (expr instanceof For and expr.returns))
     if bare then code else "(#{code})"
@@ -1913,45 +1938,291 @@ exports.If = class If extends Base
 
 #### Package
 
-  # Create packages with o without classes
-  #   package org.company.namespace
-  #     class Main
-  #       constructor: (@a) ->
-  #
-  #     class Help
-  #       constructor: (@b) ->
-  #
-  #   package org.company.empty
-  #
-  #   package org.company.full
-  #     class Yo
-  #       act: -> alert "Yo!"
-  #
-  exports.Package = class Package extends Base
-    constructor: (@namespace, @classes) ->
+# Create packages with o without classes
+#   package org.company.namespace
+#     class Main
+#       constructor: (@a) ->
+#
+#     class Help
+#       constructor: (@b) ->
+#
+#   package org.company.empty
+#
+#   package org.company.full
+#     class Globe
+#       about: -> alert "Globe is Full!"
+#
+exports.Package = class Package extends Base
 
-    children: ['namespace', 'classes']
+  # Static storages
+  @packages: {}
+  @defined : {}
 
-    compileNode: (o) ->
-      properties = []
+  constructor: (@namespace, @definitions) ->
 
-      for item in @classes when item instanceof Class
-        className = item.determineName()
+  # We need to clean up static storage to prevent watchers mistakes
+  compile: (o, lvl) ->
+    try super o, lvl catch ex
+      Package.packages = {}
+      Package.defined  = {}
+      throw ex
 
-        if className is null
-          throw new Error "cannot create an anonymous class in the package #{@namespace.compile(o)}"
+  # Compile package statement and fill Package.packages object to 
+  # flush packages definitions into top level scope in the end.
+  compileNode: (o) ->
+    pack = Package.packages
+    pack = pack[item.compile o] or= {} for item in @namespace
 
-        properties.push new Assign(new Value(new Literal(className)), item, 'object')
+    namespace = @namespace.slice()
 
-      root = @namespace.shift().compile(o)
-      Scope.root.assign root, "{}"
+    namespace = new Value(
+      (new Literal namespace.shift().compile o),
+      (new Access new Literal item.compile o for item in namespace)
+    )
 
-      namespace = "[#{@namespace.join(",").trim()}]"
+    literal = namespace.compile o
 
-      if properties.length is 0
-        return "#{utility 'namespace'}(#{root}, #{namespace}, {})"
+    # check if namespace is already declarated by class definition
+    if literal of Package.defined
+      throw new Error "cannot create a package \"#{literal}\","+
+        "a class \"#{literal}\" already exists"
 
-      "#{utility 'namespace'}(#{root}, #{namespace}, #{new Obj(properties, yes).compile(o)})"
+    # wrap package definition into scope to skip classes visibility inside the package
+    code = new Code []
+
+    # walk around classes definitions
+    for definition in @definitions when definition instanceof Class
+      className = definition.determineName()
+
+      # check if class has no name
+      if className is null
+        throw new Error "cannot create an anonymous class in the package \"#{literal}\""
+
+      # check if namespace combined by package and class name is already declarated by package definition
+      if className of pack
+        throw new Error "cannot create a class \"#{className}\" in the package \"#{literal}\", "+
+          "a package \"#{literal}.#{className}\" already exists"
+
+      key = "#{literal}.#{className}"
+
+      # check class overriding:
+      #
+      # - ignore when cross import
+      # - throw exception on real override
+      if key of Package.defined
+        isNode      = yes if FileSystem and not o.filename
+        whenCompile = yes if Import.rootFile and Import.rootFile is o.filename
+
+        continue if isNode or whenCompile
+
+        throw new Error "cannot override class \"#{key}\""
+      else
+        Package.defined[key] = yes
+
+        access = new Value (new Literal "this"), [ new Access new Literal className ]
+
+        code.body.push new Assign access, definition
+
+    code.body.push new Literal "this"
+    code.body.makeReturn()
+
+    # call in package context to make compiled code shorter and readable
+    code = new Value code, [ new Access new Literal "call" ]
+    call = new Call  code, [ namespace ]
+
+    o.sharedScope = yes if o.importingFile
+
+    # that's all
+    call.compile o
+
+  # Flush packages definitions and clear static storage
+  # to prevent watchers mistakes
+  @flush: (o) ->
+    o = extend {}, o
+    o.indent += TAB
+
+    packages = ( [root, Package.object(o, pack)] for root, pack of Package.packages )
+
+    Package.packages = {}
+    Package.defined  = {}
+
+    packages
+
+  # Compile object into json literal.
+  @object: (o, object) ->
+    properties = []
+
+    for key, value of object
+      continue unless {}.hasOwnProperty.call object, key
+
+      properties.push "#{ new Literal(key).compile o }: #{ Package.object(o, value) }"
+
+    "{#{ properties.join ", " }}"
+
+
+#### Import
+
+# Create imports code blocks
+# @todo: add documentation
+exports.Import = class Import extends Base
+
+  @imported: {}
+  @properties: []
+  @rootFile: null
+  @importedDeclarations: {}
+
+  constructor: (@searchPath, types={}) ->
+    {@isAbsolute, @isRelative, @isResolve} = types
+
+    @isResolve = yes unless @isAbsolute or @isRelative
+
+  filename: (o={}) ->
+    location = "#{ (ns.compile o for ns in @searchPath).join "/" }.coffee"
+
+    file = if o.filename is "repl" then ".coffee" else o.filename
+    dir  = Path.dirname Path.resolve __dirname, file
+
+    if @isRelative
+      FileSystem.realpathSync Path.resolve dir, location
+    else if @isAbsolute
+      FileSystem.realpathSync Path.resolve "/#{location}"
+    else if @isResolve
+      search = (pathes) ->
+        file = Path.resolve (pathes.concat location)...
+
+        try
+          FileSystem.realpathSync file
+        catch ex
+          if file is "/#{location}"
+            throw new Error "In #{o.filename}, ENOENT, no such file or directory '#{location}'"
+
+          search pathes.concat ".."
+
+      search [ dir ]
+
+  # We need to clean up static storage to prevent watchers mistakes
+  compile: (o, lvl) ->
+    Import.rootFile or= o.filename
+
+    try super o, lvl catch ex
+      Import.imported = {}
+      Import.properties = []
+      Import.rootFile = null
+      Import.importedDeclarations = {}
+      throw ex
+
+  compileNode: (o) ->
+    variable = "#{ @searchPath[@searchPath.length-1].compile o }".replace /^\s+/, ""
+
+    unless Path and FileSystem
+      o.scope.assign variable, null
+      return ""
+
+    filename = @filename o
+    
+    args = [ @checkImports o, variable, filename ]
+
+    unless Import.imported[filename] or o.importingFile is filename
+      args.push new Literal "function(cl) { #{variable} = cl; }"
+
+    word = if Import.rootFile isnt o.filename then "this" else "__imports"
+
+    call = new Call new Literal("#{word}.get"), args
+
+    o.scope.assign variable, call.compile o
+
+    ""
+
+  checkImports: (o, variable, file) ->
+    relative = (Path.relative Import.rootFile, file).replace /^(\.\.\/|\.\.\\\\)/, ""
+
+    if relative is ""
+      literalKey = new Literal "\"#{ Path.basename file }\""
+    else
+      literalKey = new Literal "\"#{ relative }\""
+
+    unless file of Import.imported
+      Import.imported[file] = no
+
+      o = extend {}, o
+
+      o.wasBare = yes if o.bare
+      o.indent = if o.wasBare then "#{TAB}#{TAB}" else "#{TAB}#{TAB}#{TAB}"
+      o.scope  = new Scope o.scope
+      o.filename = file
+
+      lexer = new Lexer()
+
+      code = new Code []
+      code.body.push parser.parse lexer.tokenize FileSystem.readFileSync file, 'utf8'
+      code.body.push new Literal variable
+      code.body.makeReturn()
+      code = new Value code, [new Access new Literal "call"]
+      call = new Call  code, [new Literal "this"]
+
+      o.importingFile = file
+
+      Import.properties.push [ literalKey, new Literal call.compile o ]
+
+      Import.imported[file] = yes
+
+      if relative is ""
+        Import.importedDeclarations[variable] = new Call new Literal("__imports.get"), [literalKey]
+
+    literalKey
+
+  @flush: (o)  ->
+    try
+      return unless Import.properties.length
+      return ["__imports", Import.assignImports o]
+    finally
+      Import.imported = {}
+      Import.properties = []
+      Import.rootFile = null
+      Import.importedDeclarations = {}
+
+  @assignImports: (o)  ->
+    o = extend {}, o
+    o.indent += TAB
+
+    properties = 
+      list    : new Literal "{}"
+      delayed : new Literal "[]"
+
+      put : new Literal "function(path, code) { " +
+        "this.list[path] = code; " +
+      "}"
+      get : new Literal "function(path, delayed) { " +
+        "if (delayed) " +
+          "this.delayed.push([path, delayed]); " +
+        "return this.list[path]; " +
+      "}"
+
+    thisLit = new Literal "this"
+    ctor = new Code []
+    for property, value of properties
+      ctor.body.push new Assign new Value(thisLit, [ new Access new Literal property ]), value
+
+    for func in Import.properties
+      ctor.body.push new Call new Value(thisLit, [ new Access new Literal "put" ]), func
+    ctor.body.push new Literal "(function(a, b, c) { " +
+      "while (c = a.shift()) { " +
+        "c[1](b[c[0]]); " +
+      "} " +
+    "})(this.delayed, this.list)"
+
+    ctor.body.push new Literal "this"
+    ctor.body.makeReturn()
+    ctor = new Value ctor, [new Access new Literal "call"]
+    call = new Call  ctor, [new Literal "{}"]
+    call.compile o
+
+  @importedDeclaration: (o, variable) ->
+    return null if variable is null
+    return null if variable not of Import.importedDeclarations
+    return null if o.scope isnt Scope.root
+
+    new Assign new Literal(variable), Import.importedDeclarations[variable]
 
 # Faux-Nodes
 # ----------
@@ -2019,10 +2290,6 @@ UTILITIES =
   hasProp: -> '{}.hasOwnProperty'
   slice  : -> '[].slice'
 
-  # Creates namespace
-  namespace: -> '''
-    function(root, array, hash) { for (var i = 0, l = array.length; i < l; i++) { var pack = array[i];root = root[pack] || (root[pack] = {}); } for (var key in hash) root[key] = hash[key]; return root; }
-  '''
 
 # Levels indicate a node's position in the AST. Useful for knowing if
 # parens are necessary or superfluous.
@@ -2064,7 +2331,7 @@ IS_STRING = /^['"]/
 # Helper for ensuring that utility functions are assigned at the top level.
 utility = (name) ->
   ref = "__#{name}"
-  Scope.root.assign ref, UTILITIES[name]()
+  Scope.poof.assign ref, UTILITIES[name]()
   ref
 
 multident = (code, tab) ->

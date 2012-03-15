@@ -86,6 +86,7 @@ grammar =
   # is one. Blocks serve as the building blocks of many other rules, making
   # them somewhat circular.
   Expression: [
+    o 'Import'
     o 'Package'
     o 'Value'
     o 'Invocation'
@@ -292,19 +293,34 @@ grammar =
     o 'CLASS SimpleAssignable EXTENDS Expression Block', -> new Class $2, $4, $5
   ]
 
-  # A package literal identifier.
-  PackageLiteral: [
-    o 'IDENTIFIER',                             -> [new Literal $1]
-    o 'IDENTIFIER . PackageLiteral',            -> [new Literal $1].concat $3
+  # Importing a code.
+  Import: [
+    o 'IMPORT     ImportPath',                  -> new Import $2, isResolve: yes
+    o 'IMPORT   / ImportPath',                  -> new Import $3, isAbsolute: yes
+    o 'IMPORT . / ImportPath',                  -> new Import $4, isRelative: yes
+  ]
+
+  # Import path.
+  ImportPath: [
+    o 'Identifier',                             -> [$1]
+    o 'Identifier / ImportPath',                -> [$1].concat $3
+    o '.. / ImportPath',                        -> [new Literal $1].concat $3
   ]
 
   # Package definitions have optional classes definitions.
   Package: [
-    o 'PACKAGE PackageLiteral',                 -> new Package $2, []
-    o 'PACKAGE PackageLiteral INDENT
+    o 'PACKAGE PackageIdentifier',              -> new Package $2, []
+    o 'PACKAGE PackageIdentifier INDENT
        PackageArgList OUTDENT',                 -> new Package $2, $4
   ]
 
+  # A package literal identifier.
+  PackageIdentifier: [
+    o 'Identifier',                             -> [$1]
+    o 'Identifier . PackageIdentifier',         -> [$1].concat $3
+  ]
+
+  # A package arguments list: one or more class definitions.
   PackageArgList: [
     o 'Class',                                  -> [$1]
     o 'PackageArgList TERMINATOR Class',        -> $1.concat $3

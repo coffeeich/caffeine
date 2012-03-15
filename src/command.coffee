@@ -1,4 +1,4 @@
-# The `coffee` utility. Handles command-line compilation of CoffeeScript
+# The `caffeine` utility. Handles command-line compilation of CoffeeScript
 # into various forms: saved into `.js` files or printed to stdout, piped to
 # [JavaScript Lint](http://javascriptlint.com/) or recompiled every time the source is
 # saved, printed as a token stream or as the syntax tree, or launch an
@@ -10,6 +10,7 @@ path           = require 'path'
 helpers        = require './helpers'
 optparse       = require './optparse'
 CoffeeScript   = require './coffee-script'
+{Import}       = require './nodes'
 {spawn, exec}  = require 'child_process'
 {EventEmitter} = require 'events'
 
@@ -23,20 +24,20 @@ printWarn = (line) -> process.stderr.write line + '\n'
 
 hidden = (file) -> /^\.|~$/.test file
 
-# The help banner that is printed when `coffee` is called without arguments.
+# The help banner that is printed when `caffeine` is called without arguments.
 BANNER = '''
-  Usage: coffee [options] path/to/script.coffee -- [args]
+  Usage: caffeine [options] path/to/script.coffee -- [args]
 
-  If called without options, `coffee` will run your script.
+  If called without options, `caffeine` will run your script.
 '''
 
-# The list of all the valid option flags that `coffee` knows how to handle.
+# The list of all the valid option flags that `caffeine` knows how to handle.
 SWITCHES = [
   ['-b', '--bare',            'compile without a top-level function wrapper']
   ['-c', '--compile',         'compile to JavaScript and save as .js files']
   ['-e', '--eval',            'pass a string from the command line as input']
   ['-h', '--help',            'display this help message']
-  ['-i', '--interactive',     'run an interactive CoffeeScript REPL']
+  ['-i', '--interactive',     'run an interactive Caffeine REPL']
   ['-j', '--join [FILE]',     'concatenate the source CoffeeScript before compiling']
   ['-l', '--lint',            'pipe the compiled JavaScript through JavaScript Lint']
   ['-n', '--nodes',           'print out the parse tree that the parser produces']
@@ -55,10 +56,9 @@ opts         = {}
 sources      = []
 sourceCode   = []
 notSources   = {}
-watchers     = {}
 optionParser = null
 
-# Run `coffee` by parsing passed options and determining what action to take.
+# Run `caffeine` by parsing passed options and determining what action to take.
 # Many flags cause us to divert before compiling anything. Flags passed after
 # `--` will be passed verbatim to your script as arguments in `process.argv`
 exports.run = ->
@@ -75,7 +75,7 @@ exports.run = ->
   return require './repl'                unless sources.length
   literals = if opts.run then sources.splice 1 else []
   process.argv = process.argv[0..1].concat literals
-  process.argv[0] = 'coffee'
+  process.argv[0] = 'caffeine'
   process.execPath = require.main.filename
   for source in sources
     compilePath source, yes, path.normalize source
@@ -132,10 +132,11 @@ compileScript = (file, input, base) ->
       sourceCode[sources.indexOf(t.file)] = t.input
       compileJoin()
     else
+      time = new Date()
       t.output = CoffeeScript.compile t.input, t.options
       CoffeeScript.emit 'success', task
       if o.print          then printLine t.output.trim()
-      else if o.compile   then writeJs t.file, t.output, base
+      else if o.compile   then writeJs t.file, t.output, base, new Date() - time
       else if o.lint      then lint t.file, t.output
   catch err
     CoffeeScript.emit 'failure', err, task
@@ -175,8 +176,8 @@ loadRequires = ->
 # time the file is updated. May be used in combination with other options,
 # such as `--lint` or `--print`.
 watch = (source, base) ->
-
-  prevStats = null
+  watchers       = {}
+  allStats       = {}
   compileTimeout = null
 
   watchErr = (e) ->
@@ -184,34 +185,72 @@ watch = (source, base) ->
       return if sources.indexOf(source) is -1
       try
         rewatch()
-        compile()
+        compile source
       catch e
         removeSource source, base, yes
         compileJoin()
     else throw e
 
-  compile = ->
+  compile = (filename) ->
     clearTimeout compileTimeout
     compileTimeout = wait 25, ->
-      fs.stat source, (err, stats) ->
+      prevStats = allStats[filename]
+      fs.stat filename, (err, stats) ->
         return watchErr err if err
         return rewatch() if prevStats and stats.size is prevStats.size and
           stats.mtime.getTime() is prevStats.mtime.getTime()
-        prevStats = stats
+        allStats[filename] = stats
         fs.readFile source, (err, code) ->
           return watchErr err if err
           compileScript(source, code.toString(), base)
           rewatch()
 
+  rewatch = ->
+    watcher.close() for filename, watcher of watchers
+
+    watchers  = {}
+    allStats  = {}
+    watchList = []
+
+    deepWatch source, watchList, ->
+      process.nextTick ->
+        for filename in watchList
+          do (filename) ->
+            watchers[filename] = fs.watch filename, -> compile filename
+
+  deepWatch = (filename, watchList, callback) ->
+    return no if filename in watchList
+
+    watchList.push filename
+
+    process.nextTick ->
+      fs.stat filename, (err, stats) ->
+        return watchErr err if err
+
+        allStats[filename] = stats
+
+        process.nextTick ->
+          fs.readFile filename, (err, code) ->
+            return watchErr err if err and err.code isnt 'ENOENT'
+
+            return callback() if err?.code is 'ENOENT'
+
+            nodes = CoffeeScript.nodes code.toString()
+
+            importExists = no
+
+            for expr in nodes.expressions when expr instanceof Import
+              if deepWatch expr.filename({filename}), watchList, callback
+                importExists = yes
+
+            callback() unless importExists
+
+    return yes
+
   try
-    watcher = fs.watch source, compile
+    rewatch()
   catch e
     watchErr e
-
-  rewatch = ->
-    watcher?.close()
-    watcher = fs.watch source, compile
-
 
 # Watch a directory of files for new additions.
 watchDir = (source, base) ->
@@ -266,7 +305,7 @@ outputPath = (source, base) ->
 # Write out a JavaScript source file with the compiled code. By default, files
 # are written out in `cwd` as `.js` files with the same name, but the output
 # directory can be customized with `--output`.
-writeJs = (source, js, base) ->
+writeJs = (source, js, base, time) ->
   jsPath = outputPath source, base
   jsDir  = path.dirname jsPath
   compile = ->
@@ -275,7 +314,7 @@ writeJs = (source, js, base) ->
       if err
         printLine err.message
       else if opts.compile and opts.watch
-        timeLog "compiled #{source}"
+        timeLog "compiled #{source} #{time}ms"
   exists jsDir, (itExists) ->
     if itExists then compile() else exec "mkdir -p #{jsDir}", compile
 

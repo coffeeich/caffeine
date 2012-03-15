@@ -35,7 +35,7 @@ sources = [
 
 # Run a CoffeeScript through our node/coffee interpreter.
 run = (args, cb) ->
-  proc =         spawn 'node', ['bin/coffee'].concat(args)
+  proc =         spawn 'node', ['bin/caffeine'].concat(args)
   proc.stderr.on 'data', (buffer) -> console.log buffer.toString()
   proc.on        'exit', (status) ->
     process.exit(1) if status != 0
@@ -47,19 +47,19 @@ log = (message, color, explanation) ->
 
 option '-p', '--prefix [DIR]', 'set the installation prefix for `cake install`'
 
-task 'install', 'install CoffeeScript into /usr/local (or --prefix)', (options) ->
+task 'install', 'install Caffeine into /usr/local (or --prefix)', (options) ->
   base = options.prefix or '/usr/local'
-  lib  = "#{base}/lib/coffee-script"
+  lib  = "#{base}/lib/caffeine"
   bin  = "#{base}/bin"
-  node = "~/.node_libraries/coffee-script"
+  node = "~/.node_libraries/caffeine"
   console.log   "Installing CoffeeScript to #{lib}"
   console.log   "Linking to #{node}"
-  console.log   "Linking 'coffee' to #{bin}/coffee"
+  console.log   "Linking 'caffeine' to #{bin}/caffeine"
   exec([
     "mkdir -p #{lib} #{bin}"
     "cp -rf bin lib LICENSE README package.json src #{lib}"
-    "ln -sfn #{lib}/bin/coffee #{bin}/coffee"
-    "ln -sfn #{lib}/bin/cake #{bin}/cake"
+    "ln -sfn #{lib}/bin/caffeine #{bin}/caffeine"
+#    "ln -sfn #{lib}/bin/cake #{bin}/cake"
     "mkdir -p ~/.node_libraries"
     "ln -sfn #{lib}/lib/coffee-script #{node}"
   ].join(' && '), (err, stdout, stderr) ->
@@ -122,7 +122,7 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
   unless process.env.MINIFY is 'false'
     {parser, uglify} = require 'uglify-js'
     code = uglify.gen_code uglify.ast_squeeze uglify.ast_mangle parser.parse code
-  fs.writeFileSync 'extras/coffee-script.js', header + '\n' + code
+  fs.writeFileSync 'extras/caffeine.js', header + '\n' + code
   console.log "built ... running browser tests:"
   invoke 'test:browser'
 
@@ -241,7 +241,7 @@ task 'test', 'run the CoffeeScript language test suite', ->
 
 
 task 'test:browser', 'run the test suite against the merged browser script', ->
-  source = fs.readFileSync 'extras/coffee-script.js', 'utf-8'
+  source = fs.readFileSync 'extras/caffeine.js', 'utf-8'
   result = {}
   global.testingBrowser = yes
   (-> eval source).call result
