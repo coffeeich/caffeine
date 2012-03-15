@@ -3,7 +3,7 @@
   "description":  "Unfancy JavaScript powered by CoffeeScript Caffeine",
   "keywords":     ["javascript", "language", "coffeescript", "caffeine", "compiler"],
   "author":       "Roman I. Kuzmin",
-  "version":      "0.1.5",
+  "version":      "0.1.7",
   "licenses":     [{
     "type":       "MIT",
     "url":        "http://github.com/ich/caffeine/raw/master/LICENSE"
