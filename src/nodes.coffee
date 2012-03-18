@@ -2107,11 +2107,14 @@ exports.Import = class Import extends Base
     Import.rootFile or= o.filename
 
     try super o, lvl catch ex
-      Import.imported = {}
+      Import.imported   = {}
       Import.properties = []
-      Import.rootFile = null
-      Import.importedDeclarations = {}
+
+      Import.rootFile       = null
       Import.delayedEnabled = no
+
+      Import.importedDeclarations = {}
+
       throw ex
 
   compileNode: (o) ->
@@ -2123,7 +2126,7 @@ exports.Import = class Import extends Base
 
     filename = @filename o
     
-    args = [ @checkImports o, variable, filename ]
+    args = [ new Literal "'#{ @checkImports o, variable, filename }'"]
 
     unless Import.imported[filename] or o.importingFile is filename
       args.push new Literal "function(cl) { #{variable} = cl; }"
@@ -2141,10 +2144,7 @@ exports.Import = class Import extends Base
     rel = if Import.rootFile is "repl" then "." else Import.rootFile
     relative = (Path.relative FileSystem.realpathSync(rel), file).replace /^(\.\.\/|\.\.\\\\)/, ""
 
-    if relative is ""
-      literalKey = new Literal "\"#{ Path.basename file }\""
-    else
-      literalKey = new Literal "\"#{ relative }\""
+    importKey = relative or Path.basename file 
 
     unless file of Import.imported
       Import.imported[file] = no
@@ -2167,25 +2167,27 @@ exports.Import = class Import extends Base
 
       o.importingFile = file
 
-      Import.properties.push [ literalKey, new Literal call.compile o ]
+      Import.properties.push [ importKey, call.compile o ]
 
       Import.imported[file] = yes
 
-      if relative is ""
-        Import.importedDeclarations[variable] = new Call new Literal("__imports.get"), [literalKey]
+      unless relative
+        Import.importedDeclarations[variable] = new Call new Literal("__imports.get"), [new Literal "'#{ importKey }'"]
 
-    literalKey
+    importKey
 
   @flush: (o)  ->
     try
       return unless Import.properties.length
       return ["__imports", Import.assignImports o]
     finally
-      Import.imported = {}
+      Import.imported   = {}
       Import.properties = []
-      Import.rootFile = null
-      Import.importedDeclarations = {}
+
+      Import.rootFile       = null
       Import.delayedEnabled = no
+
+      Import.importedDeclarations = {}
 
   @assignImports: (o)  ->
     o = extend {}, o
@@ -2193,11 +2195,8 @@ exports.Import = class Import extends Base
 
     properties = {}
     properties.list    = "{}"
-    properties.delayed = "[]" if Import.delayedEnabled
-    properties.put     = "function(path, code) { " +
-      "this.list[path] = code; " +
-    "}"
-    properties.get = switch Import.delayedEnabled
+    properties.delayed = "[]"   if Import.delayedEnabled
+    properties.get     = switch Import.delayedEnabled
       when yes then "function(path, delayed) { " +
         "if (delayed) " +
           "this.delayed.push([path, delayed]); " +
@@ -2211,11 +2210,18 @@ exports.Import = class Import extends Base
 
     code = new Code []
 
-    for property, value of properties
-      code.body.push new Assign new Value(thisLit, [ new Access new Literal property ]), new Literal value
+    for property, codeBlock of properties
+      accesses = [
+        new Access new Literal property
+      ]
+      code.body.push new Assign new Value(thisLit, accesses), new Literal codeBlock
 
-    for values in Import.properties
-      code.body.push new Call   new Value(thisLit, [ new Access new Literal "put" ]), values
+    for [importKey, codeBlock] in Import.properties
+      accesses = [
+        new Access new Literal "list"
+        new Access new Literal "'#{ importKey }'"
+      ]
+      code.body.push new Assign new Value(thisLit, accesses), new Literal codeBlock
 
     if Import.delayedEnabled
       code.body.push new Literal "(function(a, b, c) { " +
