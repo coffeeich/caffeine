@@ -2193,42 +2193,35 @@ exports.Import = class Import extends Base
     o = extend {}, o
     o.indent += TAB
 
-    properties = {}
-    properties.list    = "{}"
-    properties.delayed = "[]"   if Import.delayedEnabled
-    properties.get     = switch Import.delayedEnabled
-      when yes then "function(path, delayed) { " +
-        "if (delayed) " +
-          "this.delayed.push([path, delayed]); " +
-        "return this.list[path]; " +
-      "}"
-      else "function(path) { " +
-        "return this.list[path]; " +
-      "}"
-
-    thisLit = new Literal "this"
-
     code = new Code []
+    code.body.push new Assign(
+      new Value(new Literal("this"), [ new Access new Literal "get" ])
+      new Literal switch Import.delayedEnabled
+        when yes then "function(path, delayed) { " +
+          "if (delayed) " +
+            "delayed.push([path, delayed]); " +
+          "return list[path]; " +
+        "}"
+        else "function(path) { " +
+          "return list[path]; " +
+        "}"
+    )
 
-    for property, codeBlock of properties
-      accesses = [
-        new Access new Literal property
-      ]
-      code.body.push new Assign new Value(thisLit, accesses), new Literal codeBlock
+    code.body.push new Assign new Value(new Literal "delayed"), new Literal "{}" if Import.delayedEnabled
+    code.body.push new Assign new Value(new Literal "list"),    new Literal "[]"
 
     for [importKey, codeBlock] in Import.properties
-      accesses = [
-        new Access new Literal "list"
-        new Access new Literal "'#{ importKey }'"
-      ]
-      code.body.push new Assign new Value(thisLit, accesses), new Literal codeBlock
+      code.body.push new Assign(
+        new Value(new Literal("list"), [ new Access new Literal "'#{ importKey }'" ]),
+        new Literal codeBlock
+      )
 
     if Import.delayedEnabled
-      code.body.push new Literal "(function(a, b, c) { " +
-        "while (c = a.shift()) { " +
-          "c[1](b[c[0]]); " +
+      code.body.push new Literal "(function(a) { " +
+        "while (a = delayed.shift()) { " +
+          "a[1](list[a[0]]); " +
         "} " +
-      "})(this.delayed, this.list)"
+      "})()"
 
     code.body.push new Literal "this"
     code.body.makeReturn()
