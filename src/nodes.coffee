@@ -2192,18 +2192,18 @@ exports.Import = class Import extends Base
     o.indent += TAB
 
     properties = {}
-    properties.list    = new Literal "{}"
-    properties.delayed = new Literal "[]" if Import.delayedEnabled
-    properties.put = new Literal "function(path, code) { " +
+    properties.list    = "{}"
+    properties.delayed = "[]" if Import.delayedEnabled
+    properties.put     = "function(path, code) { " +
       "this.list[path] = code; " +
     "}"
     properties.get = switch Import.delayedEnabled
-      when yes then new Literal "function(path, delayed) { " +
+      when yes then "function(path, delayed) { " +
         "if (delayed) " +
           "this.delayed.push([path, delayed]); " +
         "return this.list[path]; " +
       "}"
-      else new Literal "function(path) { " +
+      else "function(path) { " +
         "return this.list[path]; " +
       "}"
 
@@ -2212,7 +2212,7 @@ exports.Import = class Import extends Base
     code = new Code []
 
     for property, value of properties
-      code.body.push new Assign new Value(thisLit, [ new Access new Literal property ]), value
+      code.body.push new Assign new Value(thisLit, [ new Access new Literal property ]), new Literal value
 
     for values in Import.properties
       code.body.push new Call   new Value(thisLit, [ new Access new Literal "put" ]), values
