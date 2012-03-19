@@ -2194,21 +2194,20 @@ exports.Import = class Import extends Base
     o.indent += TAB
 
     code = new Code []
+    code.body.push new Assign new Value(new Literal "delayed"), new Literal "[]" if Import.delayedEnabled
+    code.body.push new Assign new Value(new Literal "list"),    new Literal "{}"
     code.body.push new Assign(
       new Value(new Literal("this"), [ new Access new Literal "get" ])
       new Literal switch Import.delayedEnabled
-        when yes then "function(path, delayed) { " +
-          "if (delayed) " +
-            "delayed.push([path, delayed]); " +
-          "return list[path]; " +
+        when yes then "function(key, func) { " +
+          "if (func) { " +
+            "delayed.push([func, key]); } " +
+          "return list[key]; " +
         "}"
-        else "function(path) { " +
-          "return list[path]; " +
+        else "function(key) { " +
+          "return list[key]; " +
         "}"
     )
-
-    code.body.push new Assign new Value(new Literal "delayed"), new Literal "{}" if Import.delayedEnabled
-    code.body.push new Assign new Value(new Literal "list"),    new Literal "[]"
 
     for [importKey, codeBlock] in Import.properties
       code.body.push new Assign(
@@ -2219,7 +2218,7 @@ exports.Import = class Import extends Base
     if Import.delayedEnabled
       code.body.push new Literal "(function(a) { " +
         "while (a = delayed.shift()) { " +
-          "a[1](list[a[0]]); " +
+          "a[0](list[a[1]]); " +
         "} " +
       "})()"
 
