@@ -216,8 +216,13 @@ watch = (source, base) ->
 
     deepWatch source, watchList, ->
       for filename in watchList
+        continue if filename of watchers
+
         do (filename) ->
-          watchers[filename] = (fs.watchFile or fs.watch) filename, -> compile filename
+          watchers[filename] = try
+              fs.watchFile filename, -> compile filename
+            catch ex 
+              fs.watch filename, -> compile filename
 
   deepWatch = (filename, watchList, callback) ->
     return no if filename in watchList
