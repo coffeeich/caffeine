@@ -68,7 +68,7 @@ exports.run = ->
   return version()                       if opts.version
   loadRequires()                         if opts.require
   return require './repl'                if opts.interactive
-  if opts.watch and !fs.watch
+  if opts.watch and not (fs.watchFile or fs.watch)
     return printWarn "The --watch feature depends on Node v0.6.0+. You are running #{process.version}."
   return compileStdio()                  if opts.stdio
   return compileScript null, sources[0]  if opts.eval
@@ -172,7 +172,7 @@ loadRequires = ->
   require req for req in opts.require
   module.filename = realFilename
 
-# Watch a source CoffeeScript file using `fs.watch`, recompiling it every
+# Watch a source CoffeeScript file using `fs.watch` or `fs.watchFile`, recompiling it every
 # time the file is updated. May be used in combination with other options,
 # such as `--lint` or `--print`.
 watch = (source, base) ->
@@ -206,7 +206,9 @@ watch = (source, base) ->
           rewatch()
 
   rewatch = ->
-    watcher.close() for filename, watcher of watchers
+    for filename, watcher of watchers
+      fs.unwatchFile? filename
+      watcher.close?()
 
     watchers  = {}
     allStats  = {}
@@ -215,7 +217,7 @@ watch = (source, base) ->
     deepWatch source, watchList, ->
       for filename in watchList
         do (filename) ->
-          watchers[filename] = fs.watch filename, -> compile filename
+          watchers[filename] = (fs.watchFile or fs.watch) filename, -> compile filename
 
   deepWatch = (filename, watchList, callback) ->
     return no if filename in watchList
