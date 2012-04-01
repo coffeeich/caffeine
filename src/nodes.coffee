@@ -2118,25 +2118,32 @@ exports.Import = class Import extends Base
       throw ex
 
   compileNode: (o) ->
-    variable = "#{ @searchPath[@searchPath.length-1].compile o }".replace /^\s+/, ""
+    variable   = @searchPath[@searchPath.length-1].compile o
+    identifier = (@identifier?.compile o) or variable
 
     unless Path and FileSystem
-      o.scope.assign variable, null
+      o.scope.assign identifier, null
       return ""
 
     filename = @filename o
     
     args = [ new Literal "'#{ @checkImports o, variable, filename }'"]
 
-    unless Import.imported[filename] or o.importingFile is filename
-      args.push new Literal "function(cl) { #{variable} = cl; }"
+    importingFile = o.importingFile is filename
+    imported = Import.imported[filename]          if filename of Import.imported
+
+    delayedEnabled = yes  unless  importingFile or  imported is yes
+    delayedEnabled = yes  if      importingFile and imported is no
+
+    if delayedEnabled
+      args.push new Literal "function(cl) { #{identifier} = cl; }"
       Import.delayedEnabled = yes
 
     word = if Import.rootFile isnt o.filename then "this" else "__imports"
 
     call = new Call new Literal("#{word}.get"), args
 
-    o.scope.assign variable, call.compile o
+    o.scope.assign identifier, call.compile o
 
     ""
 
@@ -2144,7 +2151,7 @@ exports.Import = class Import extends Base
     rel = if Import.rootFile is "repl" then "." else Import.rootFile
     relative = (Path.relative FileSystem.realpathSync(rel), file).replace /^(\.\.\/|\.\.\\\\)/, ""
 
-    importKey = relative or Path.basename file 
+    importKey = relative or Path.basename file
 
     unless file of Import.imported
       Import.imported[file] = no

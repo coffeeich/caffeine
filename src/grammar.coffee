@@ -298,6 +298,7 @@ grammar =
     o 'IMPORT     ImportPath',                  -> new Import $2, isResolve: yes
     o 'IMPORT   / ImportPath',                  -> new Import $3, isAbsolute: yes
     o 'IMPORT . / ImportPath',                  -> new Import $4, isRelative: yes
+    o 'Import AS Identifier',                   -> $1.identifier = $3; $1
   ]
 
   # Import path.
