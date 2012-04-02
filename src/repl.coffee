@@ -8,8 +8,8 @@
 stdin = process.openStdin()
 stdout = process.stdout
 
-# Require the **coffee-script** module to get access to the compiler.
-CoffeeScript = require './coffee-script'
+# Require the **caffeine** module to get access to the compiler.
+Caffeine     = require './caffeine'
 readline     = require 'readline'
 {inspect}    = require 'util'
 {Script}     = require 'vm'
@@ -61,7 +61,7 @@ completeVariable = (text) ->
   free = "" if text is ""
   if free?
     vars = Script.runInThisContext 'Object.getOwnPropertyNames(Object(this))'
-    keywords = (r for r in CoffeeScript.RESERVED when r[..1] isnt '__')
+    keywords = (r for r in Caffeine.RESERVED when r[..1] isnt '__')
     candidates = vars
     for key in keywords when key not in candidates
       candidates.push key
@@ -104,7 +104,7 @@ run = (buffer) ->
   backlog = ''
   try
     _ = global._
-    returnValue = CoffeeScript.eval "_=(#{code}\n)", {
+    returnValue = Caffeine.eval "_=(#{code}\n)", {
       filename: 'repl'
       modulename: 'repl'
     }

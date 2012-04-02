@@ -1,8 +1,8 @@
 # Helpers
 # -------
 
-# pull the helpers from `CoffeeScript.helpers` into local variables
-{starts, ends, compact, count, merge, extend, flatten, del, last} = CoffeeScript.helpers
+# pull the helpers from `Caffeine.helpers` into local variables
+{starts, ends, compact, count, merge, extend, flatten, del, last} = Caffeine.helpers
 
 
 # `starts`

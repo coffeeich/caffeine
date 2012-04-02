@@ -14,7 +14,7 @@
 #   * Function Invocations
 #   * String Literals
 
-doesNotThrow -> CoffeeScript.compile "a = then b"
+doesNotThrow -> Caffeine.compile "a = then b"
 
 test "multiple semicolon-separated statements in parentheticals", ->
   nonce = {}
@@ -73,13 +73,13 @@ test "`?.` and `::` should continue lines", ->
   #::
   #?.foo
 
-doesNotThrow -> CoffeeScript.compile """
+doesNotThrow -> Caffeine.compile """
   oh. yes
   oh?. true
   oh:: return
   """
 
-doesNotThrow -> CoffeeScript.compile """
+doesNotThrow -> Caffeine.compile """
   a?[b..]
   a?[...b]
   a?[b..c]
@@ -98,7 +98,7 @@ test "indented array literals don't trigger whitespace rewriting", ->
 
 # Function Invocations
 
-doesNotThrow -> CoffeeScript.compile """
+doesNotThrow -> Caffeine.compile """
   obj = then fn 1,
     1: 1
     a:
@@ -119,7 +119,7 @@ test "indented heredoc", ->
 
 # Nested blocks caused by paren unwrapping
 test "#1492: Nested blocks don't cause double semicolons", ->
-  js = CoffeeScript.compile '(0;0)'
+  js = Caffeine.compile '(0;0)'
   eq -1, js.indexOf ';;'
 
 test "#1195 Ignore trailing semicolons (before newlines or as the last char in a program)", ->
@@ -130,14 +130,14 @@ test "#1195 Ignore trailing semicolons (before newlines or as the last char in a
     nonce2
     unless f() is nonce then throw new Error('; before linebreak should = newline')
     """
-  CoffeeScript.run(preNewline(n), bare: true) for n in [1,2,3]
+  Caffeine.run(preNewline(n), bare: true) for n in [1,2,3]
 
   lastChar = '-> lastChar;'
-  doesNotThrow -> CoffeeScript.compile lastChar, bare: true
+  doesNotThrow -> Caffeine.compile lastChar, bare: true
 
 test "#1299: Disallow token misnesting", ->
   try
-    CoffeeScript.compile '''
+    Caffeine.compile '''
       [{
          ]}
     '''

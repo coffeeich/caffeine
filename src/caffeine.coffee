@@ -1,4 +1,4 @@
-# CoffeeScript can be used both on the server, as a command-line compiler based
+# Caffeine can be used both on the server, as a command-line compiler based
 # on Node.js/V8, or to run CoffeeScripts directly in the browser. This module
 # contains the main entry functions for tokenizing, parsing, and compiling
 # source CoffeeScript into JavaScript.
@@ -29,7 +29,7 @@ exports.RESERVED = RESERVED
 # Expose helpers for testing.
 exports.helpers = require './helpers'
 
-# Compile a string of CoffeeScript code to JavaScript, using the Coffee/Jison
+# Compile a string of CoffeeScript code to JavaScript, using the Caffeine/Jison
 # compiler.
 exports.compile = compile = (code, options = {}) ->
   {merge} = exports.helpers
@@ -77,7 +77,7 @@ exports.run = (code, options = {}) ->
     mainModule._compile code, mainModule.filename
 
 # Compile and evaluate a string of CoffeeScript (in a Node.js-like environment).
-# The CoffeeScript REPL uses this to run the input.
+# The Caffeine REPL uses this to run the input.
 exports.eval = (code, options = {}) ->
   return unless code = code.trim()
   Script = vm.Script

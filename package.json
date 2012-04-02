@@ -12,9 +12,9 @@
     "node":       ">=0.4.0"
   },
   "directories" : {
-    "lib" : "./lib/coffee-script"
+    "lib" : "./lib/caffeine"
   },
-  "main" : "./lib/coffee-script/coffee-script",
+  "main" : "./lib/caffeine/caffeine",
   "bin":          {
     "caffeine":   "./bin/caffeine"
   },
