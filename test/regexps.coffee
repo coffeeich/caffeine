@@ -39,7 +39,7 @@ test "#584: slashes are allowed unescaped in character classes", ->
   ok /^a\/[/]b$/.test 'a//b'
 
 test "#1724: regular expressions beginning with `*`", ->
-  throws -> CoffeeScript.compile '/*/'
+  throws -> Caffeine.compile '/*/'
 
 
 # Heregexe(n|s)
@@ -54,7 +54,7 @@ test "an empty heregex will compile to an empty, non-capturing group", ->
   eq /(?:)/ + '', ///  /// + ''
 
 test "#1724: regular expressions beginning with `*`", ->
-  throws -> CoffeeScript.compile '/// * ///'
+  throws -> Caffeine.compile '/// * ///'
 
 test "empty regular expressions with flags", ->
   fn = (x) -> x

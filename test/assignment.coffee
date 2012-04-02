@@ -16,8 +16,8 @@ test "context property assignment (using @)", ->
 
 test "unassignable values", ->
   nonce = {}
-  for nonref in ['', '""', '0', 'f()'].concat CoffeeScript.RESERVED
-    eq nonce, (try CoffeeScript.compile "#{nonref} = v" catch e then nonce)
+  for nonref in ['', '""', '0', 'f()'].concat Caffeine.RESERVED
+    eq nonce, (try Caffeine.compile "#{nonref} = v" catch e then nonce)
 
 # Compound Assignment
 
@@ -247,19 +247,19 @@ test "#1024", ->
   eq 2 * [] = 3 + 5, 16
 
 test "#1005: invalid identifiers allowed on LHS of destructuring assignment", ->
-  disallowed = ['eval', 'arguments'].concat CoffeeScript.RESERVED
-  throws (-> CoffeeScript.compile "[#{disallowed.join ', '}] = x"), null, 'all disallowed'
-  throws (-> CoffeeScript.compile "[#{disallowed.join '..., '}...] = x"), null, 'all disallowed as splats'
+  disallowed = ['eval', 'arguments'].concat Caffeine.RESERVED
+  throws (-> Caffeine.compile "[#{disallowed.join ', '}] = x"), null, 'all disallowed'
+  throws (-> Caffeine.compile "[#{disallowed.join '..., '}...] = x"), null, 'all disallowed as splats'
   t = tSplat = null
   for v in disallowed when v isnt 'class' # `class` by itself is an expression
-    throws (-> CoffeeScript.compile t), null, t = "[#{v}] = x"
-    throws (-> CoffeeScript.compile tSplat), null, tSplat = "[#{v}...] = x"
+    throws (-> Caffeine.compile t), null, t = "[#{v}] = x"
+    throws (-> Caffeine.compile tSplat), null, tSplat = "[#{v}...] = x"
   doesNotThrow ->
     for v in disallowed
-      CoffeeScript.compile "[a.#{v}] = x"
-      CoffeeScript.compile "[a.#{v}...] = x"
-      CoffeeScript.compile "[@#{v}] = x"
-      CoffeeScript.compile "[@#{v}...] = x"
+      Caffeine.compile "[a.#{v}] = x"
+      Caffeine.compile "[a.#{v}...] = x"
+      Caffeine.compile "[@#{v}] = x"
+      Caffeine.compile "[@#{v}...] = x"
 
 test "#2055: destructuring assignment with `new`", ->
   {length} = new Array
@@ -281,21 +281,21 @@ test "existential assignment", ->
   eq nonce, c
 
 test "#1627: prohibit conditional assignment of undefined variables", ->
-  throws (-> CoffeeScript.compile "x ?= 10"),        null, "prohibit (x ?= 10)"
-  throws (-> CoffeeScript.compile "x ||= 10"),       null, "prohibit (x ||= 10)"
-  throws (-> CoffeeScript.compile "x or= 10"),       null, "prohibit (x or= 10)"
-  throws (-> CoffeeScript.compile "do -> x ?= 10"),  null, "prohibit (do -> x ?= 10)"
-  throws (-> CoffeeScript.compile "do -> x ||= 10"), null, "prohibit (do -> x ||= 10)"
-  throws (-> CoffeeScript.compile "do -> x or= 10"), null, "prohibit (do -> x or= 10)"
-  doesNotThrow (-> CoffeeScript.compile "x = null; x ?= 10"),        "allow (x = null; x ?= 10)"
-  doesNotThrow (-> CoffeeScript.compile "x = null; x ||= 10"),       "allow (x = null; x ||= 10)"
-  doesNotThrow (-> CoffeeScript.compile "x = null; x or= 10"),       "allow (x = null; x or= 10)"
-  doesNotThrow (-> CoffeeScript.compile "x = null; do -> x ?= 10"),  "allow (x = null; do -> x ?= 10)"
-  doesNotThrow (-> CoffeeScript.compile "x = null; do -> x ||= 10"), "allow (x = null; do -> x ||= 10)"
-  doesNotThrow (-> CoffeeScript.compile "x = null; do -> x or= 10"), "allow (x = null; do -> x or= 10)"
+  throws (-> Caffeine.compile "x ?= 10"),        null, "prohibit (x ?= 10)"
+  throws (-> Caffeine.compile "x ||= 10"),       null, "prohibit (x ||= 10)"
+  throws (-> Caffeine.compile "x or= 10"),       null, "prohibit (x or= 10)"
+  throws (-> Caffeine.compile "do -> x ?= 10"),  null, "prohibit (do -> x ?= 10)"
+  throws (-> Caffeine.compile "do -> x ||= 10"), null, "prohibit (do -> x ||= 10)"
+  throws (-> Caffeine.compile "do -> x or= 10"), null, "prohibit (do -> x or= 10)"
+  doesNotThrow (-> Caffeine.compile "x = null; x ?= 10"),        "allow (x = null; x ?= 10)"
+  doesNotThrow (-> Caffeine.compile "x = null; x ||= 10"),       "allow (x = null; x ||= 10)"
+  doesNotThrow (-> Caffeine.compile "x = null; x or= 10"),       "allow (x = null; x or= 10)"
+  doesNotThrow (-> Caffeine.compile "x = null; do -> x ?= 10"),  "allow (x = null; do -> x ?= 10)"
+  doesNotThrow (-> Caffeine.compile "x = null; do -> x ||= 10"), "allow (x = null; do -> x ||= 10)"
+  doesNotThrow (-> Caffeine.compile "x = null; do -> x or= 10"), "allow (x = null; do -> x or= 10)"
   
-  throws (-> CoffeeScript.compile "-> -> -> x ?= 10"), null, "prohibit (-> -> -> x ?= 10)"
-  doesNotThrow (-> CoffeeScript.compile "x = null; -> -> -> x ?= 10"), "allow (x = null; -> -> -> x ?= 10)"
+  throws (-> Caffeine.compile "-> -> -> x ?= 10"), null, "prohibit (-> -> -> x ?= 10)"
+  doesNotThrow (-> Caffeine.compile "x = null; -> -> -> x ?= 10"), "allow (x = null; -> -> -> x ?= 10)"
   
 test "more existential assignment", ->
   global.temp ?= 0
@@ -317,8 +317,8 @@ test "#1348, #1216: existential assignment compilation", ->
 
 test "#1591, #1101: splatted expressions in destructuring assignment must be assignable", ->
   nonce = {}
-  for nonref in ['', '""', '0', 'f()', '(->)'].concat CoffeeScript.RESERVED
-    eq nonce, (try CoffeeScript.compile "[#{nonref}...] = v" catch e then nonce)
+  for nonref in ['', '""', '0', 'f()', '(->)'].concat Caffeine.RESERVED
+    eq nonce, (try Caffeine.compile "[#{nonref}...] = v" catch e then nonce)
 
 test "#1643: splatted accesses in destructuring assignments should not be declared as variables", ->
   nonce = {}
@@ -332,7 +332,7 @@ test "#1643: splatted accesses in destructuring assignments should not be declar
         [#{new Array(i).join('x,')}#{access}...] = [#{new Array(i).join('0,')}nonce, nonce2, nonce3]
         unless #{access}[0] is nonce and #{access}[1] is nonce2 and #{access}[2] is nonce3 then throw new Error('[...]')
         """
-      eq nonce, unless (try CoffeeScript.run code, bare: true catch e then true) then nonce
+      eq nonce, unless (try Caffeine.run code, bare: true catch e then true) then nonce
   # subpatterns like `[[a]...]` and `[{a}...]`
   subpatterns = ['[sub, sub2, sub3]', '{0: sub, 1: sub2, 2: sub3}']
   for subpattern in subpatterns
@@ -343,7 +343,7 @@ test "#1643: splatted accesses in destructuring assignments should not be declar
         [#{new Array(i).join('x,')}#{subpattern}...] = [#{new Array(i).join('0,')}nonce, nonce2, nonce3]
         unless sub is nonce and sub2 is nonce2 and sub3 is nonce3 then throw new Error('[sub...]')
         """
-      eq nonce, unless (try CoffeeScript.run code, bare: true catch e then true) then nonce
+      eq nonce, unless (try Caffeine.run code, bare: true catch e then true) then nonce
 
 test "#1838: Regression with variable assignment", ->
   name =
@@ -352,16 +352,16 @@ test "#1838: Regression with variable assignment", ->
   eq name, 'dave'
 
 test '#2211: splats in destructured parameters', ->
-  doesNotThrow -> CoffeeScript.compile '([a...]) ->'
-  doesNotThrow -> CoffeeScript.compile '([a...],b) ->'
-  doesNotThrow -> CoffeeScript.compile '([a...],[b...]) ->'
-  throws -> CoffeeScript.compile '([a...,[a...]]) ->'
-  doesNotThrow -> CoffeeScript.compile '([a...,[b...]]) ->'
+  doesNotThrow -> Caffeine.compile '([a...]) ->'
+  doesNotThrow -> Caffeine.compile '([a...],b) ->'
+  doesNotThrow -> Caffeine.compile '([a...],[b...]) ->'
+  throws -> Caffeine.compile '([a...,[a...]]) ->'
+  doesNotThrow -> Caffeine.compile '([a...,[b...]]) ->'
 
 test '#2213: invocations within destructured parameters', ->
-  throws -> CoffeeScript.compile '([a()])->'
-  throws -> CoffeeScript.compile '([a:b()])->'
-  throws -> CoffeeScript.compile '([a:b.c()])->'
-  throws -> CoffeeScript.compile '({a()})->'
-  throws -> CoffeeScript.compile '({a:b()})->'
-  throws -> CoffeeScript.compile '({a:b.c()})->'
+  throws -> Caffeine.compile '([a()])->'
+  throws -> Caffeine.compile '([a:b()])->'
+  throws -> Caffeine.compile '([a:b.c()])->'
+  throws -> Caffeine.compile '({a()})->'
+  throws -> Caffeine.compile '({a:b()})->'
+  throws -> Caffeine.compile '({a:b.c()})->'

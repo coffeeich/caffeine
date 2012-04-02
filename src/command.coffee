@@ -9,15 +9,15 @@ fs             = require 'fs'
 path           = require 'path'
 helpers        = require './helpers'
 optparse       = require './optparse'
-CoffeeScript   = require './coffee-script'
+Caffeine       = require './caffeine'
 {Import}       = require './nodes'
 {spawn, exec}  = require 'child_process'
 {EventEmitter} = require 'events'
 
 exists         = fs.exists or path.exists
 
-# Allow CoffeeScript to emit Node.js events.
-helpers.extend CoffeeScript, new EventEmitter
+# Allow Caffeine to emit Node.js events.
+helpers.extend Caffeine, new EventEmitter
 
 printLine = (line) -> process.stdout.write line + '\n'
 printWarn = (line) -> process.stderr.write line + '\n'
@@ -124,23 +124,23 @@ compileScript = (file, input, base) ->
   options = compileOptions file
   try
     t = task = {file, input, options}
-    CoffeeScript.emit 'compile', task
-    if      o.tokens      then printTokens CoffeeScript.tokens t.input
-    else if o.nodes       then printLine CoffeeScript.nodes(t.input).toString().trim()
-    else if o.run         then CoffeeScript.run t.input, t.options
+    Caffeine.emit 'compile', task
+    if      o.tokens      then printTokens Caffeine.tokens t.input
+    else if o.nodes       then printLine Caffeine.nodes(t.input).toString().trim()
+    else if o.run         then Caffeine.run t.input, t.options
     else if o.join and t.file isnt o.join
       sourceCode[sources.indexOf(t.file)] = t.input
       compileJoin()
     else
       time = new Date()
-      t.output = CoffeeScript.compile t.input, t.options
-      CoffeeScript.emit 'success', task
+      t.output = Caffeine.compile t.input, t.options
+      Caffeine.emit 'success', task
       if o.print          then printLine t.output.trim()
       else if o.compile   then writeJs t.file, t.output, base, new Date() - time
       else if o.lint      then lint t.file, t.output
   catch err
-    CoffeeScript.emit 'failure', err, task
-    return if CoffeeScript.listeners('failure').length
+    Caffeine.emit 'failure', err, task
+    return if Caffeine.listeners('failure').length
     return printLine err.message + '\x07' if o.watch
     printWarn err instanceof Error and err.stack or "ERROR: #{err}"
     process.exit 1
@@ -244,7 +244,7 @@ watch = (source, base) ->
             importExists = no
 
             try
-              nodes = CoffeeScript.nodes code.toString()
+              nodes = Caffeine.nodes code.toString()
             catch ex
               # ignore parse errors on this step
 
@@ -368,7 +368,7 @@ parseOptions = ->
   sourceCode[i] = null for source, i in sources
   return
 
-# The compile-time options to pass to the CoffeeScript compiler.
+# The compile-time options to pass to the Caffeine compiler.
 compileOptions = (filename) ->
   {filename, bare: opts.bare, header: opts.compile}
 
@@ -390,4 +390,4 @@ usage = ->
 
 # Print the `--version` message and exit.
 version = ->
-  printLine "Caffeine version #{CoffeeScript.VERSION}"
+  printLine "Caffeine version #{Caffeine.VERSION}"

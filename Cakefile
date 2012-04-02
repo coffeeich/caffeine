@@ -1,7 +1,7 @@
 fs            = require 'fs'
 path          = require 'path'
-{extend}      = require './lib/coffee-script/helpers'
-CoffeeScript  = require './lib/coffee-script'
+{extend}      = require './lib/caffeine/helpers'
+Caffeine      = require './lib/caffeine'
 {spawn, exec} = require 'child_process'
 
 # ANSI Terminal Colors.
@@ -19,7 +19,7 @@ if enableColors
 # Built file header.
 header = """
   /**
-   * Caffeine Compiler v#{CoffeeScript.VERSION}
+   * Caffeine Compiler v#{Caffeine.VERSION}
    * http://ich.github.com/caffeine
    *
    * Copyright 2009-2012, Jeremy Ashkenas
@@ -29,11 +29,11 @@ header = """
 """
 
 sources = [
-  'coffee-script', 'grammar', 'helpers'
+  'caffeine', 'grammar', 'helpers'
   'lexer', 'nodes', 'rewriter', 'scope'
 ].map (filename) -> "src/#{filename}.coffee"
 
-# Run a CoffeeScript through our node/coffee interpreter.
+# Run a CoffeeScript through our node/caffeine interpreter.
 run = (args, cb) ->
   proc =         spawn 'node', ['bin/caffeine'].concat(args)
   proc.stderr.on 'data', (buffer) -> console.log buffer.toString()
@@ -52,7 +52,7 @@ task 'install', 'install Caffeine into /usr/local (or --prefix)', (options) ->
   lib  = "#{base}/lib/caffeine"
   bin  = "#{base}/bin"
   node = "~/.node_libraries/caffeine"
-  console.log   "Installing CoffeeScript to #{lib}"
+  console.log   "Installing Caffeine to #{lib}"
   console.log   "Linking to #{node}"
   console.log   "Linking 'caffeine' to #{bin}/caffeine"
   exec([
@@ -61,22 +61,22 @@ task 'install', 'install Caffeine into /usr/local (or --prefix)', (options) ->
     "ln -sfn #{lib}/bin/caffeine #{bin}/caffeine"
 #    "ln -sfn #{lib}/bin/cake #{bin}/cake"
     "mkdir -p ~/.node_libraries"
-    "ln -sfn #{lib}/lib/coffee-script #{node}"
+    "ln -sfn #{lib}/lib/caffeine #{node}"
   ].join(' && '), (err, stdout, stderr) ->
     if err then console.log stderr.trim() else log 'done', green
   )
 
 
-task 'build', 'build the CoffeeScript language from source', build = (cb) ->
+task 'build', 'build the Caffeine language from source', build = (cb) ->
   files = fs.readdirSync 'src'
   files = ('src/' + file for file in files when file.match(/\.coffee$/))
-  run ['-c', '-o', 'lib/coffee-script'].concat(files), cb
+  run ['-c', '-o', 'lib/caffeine'].concat(files), cb
 
 
 task 'build:full', 'rebuild the source twice, and run the tests', ->
   build ->
     build ->
-      csPath = './lib/coffee-script'
+      csPath = './lib/caffeine'
       delete require.cache[require.resolve csPath]
       unless runTests require csPath
         process.exit 1
@@ -85,8 +85,8 @@ task 'build:full', 'rebuild the source twice, and run the tests', ->
 task 'build:parser', 'rebuild the Jison parser (run build first)', ->
   extend global, require('util')
   require 'jison'
-  parser = require('./lib/coffee-script/grammar').parser
-  fs.writeFile 'lib/coffee-script/parser.js', parser.generate()
+  parser = require('./lib/caffeine/grammar').parser
+  fs.writeFile 'lib/caffeine/parser.js', parser.generate()
 
 
 task 'build:ultraviolet', 'build and install the Ultraviolet syntax highlighter', ->
@@ -97,25 +97,25 @@ task 'build:ultraviolet', 'build and install the Ultraviolet syntax highlighter'
 
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = ''
-  for name in ['helpers', 'rewriter', 'lexer', 'parser', 'scope', 'nodes', 'coffee-script', 'browser']
+  for name in ['helpers', 'rewriter', 'lexer', 'parser', 'scope', 'nodes', 'caffeine', 'browser']
     code += """
       require['./#{name}'] = new function() {
         var exports = this;
-        #{fs.readFileSync "lib/coffee-script/#{name}.js"}
+        #{fs.readFileSync "lib/caffeine/#{name}.js"}
       };
     """
   code = """
     (function(root) {
-      var CoffeeScript = function() {
+      var Caffeine = function() {
         function require(path){ return require[path]; }
         #{code}
-        return require['./coffee-script'];
+        return require['./caffeine'];
       }();
 
       if (typeof define === 'function' && define.amd) {
-        define(function() { return CoffeeScript; });
+        define(function() { return Caffeine; });
       } else { 
-        root.CoffeeScript = CoffeeScript; 
+        root.Caffeine = Caffeine; 
       }
     }(this));
   """
@@ -142,29 +142,29 @@ task 'doc:underscore', 'rebuild the Underscore.coffee documentation page', ->
     throw err if err
 
 task 'bench', 'quick benchmark of compilation time', ->
-  {Rewriter} = require './lib/coffee-script/rewriter'
+  {Rewriter} = require './lib/caffeine/rewriter'
   co     = sources.map((name) -> fs.readFileSync name).join '\n'
   fmt    = (ms) -> " #{bold}#{ "   #{ms}".slice -4 }#{reset} ms"
   total  = 0
   now    = Date.now()
   time   = -> total += ms = -(now - now = Date.now()); fmt ms
-  tokens = CoffeeScript.tokens co, rewrite: false
+  tokens = Caffeine.tokens co, rewrite: false
   console.log "Lex    #{time()} (#{tokens.length} tokens)"
   tokens = new Rewriter().rewrite tokens
   console.log "Rewrite#{time()} (#{tokens.length} tokens)"
-  nodes  = CoffeeScript.nodes tokens
+  nodes  = Caffeine.nodes tokens
   console.log "Parse  #{time()}"
   js     = nodes.compile bare: true
   console.log "Compile#{time()} (#{js.length} chars)"
   console.log "total  #{ fmt total }"
 
-task 'loc', 'count the lines of source code in the CoffeeScript compiler', ->
+task 'loc', 'count the lines of source code in the Caffeine compiler', ->
   exec "cat #{ sources.join(' ') } | grep -v '^\\( *#\\|\\s*$\\)' | wc -l | tr -s ' '", (err, stdout) ->
     console.log stdout.trim()
 
 
-# Run the CoffeeScript test suite.
-runTests = (CoffeeScript) ->
+# Run the Caffeine test suite.
+runTests = (Caffeine) ->
   startTime   = Date.now()
   currentFile = null
   passedTests = 0
@@ -173,7 +173,7 @@ runTests = (CoffeeScript) ->
   global[name] = func for name, func of require 'assert'
 
   # Convenience aliases.
-  global.CoffeeScript = CoffeeScript
+  global.Caffeine = Caffeine
 
   # Our test helper function for delimiting different test cases.
   global.test = (description, fn) ->
@@ -230,14 +230,14 @@ runTests = (CoffeeScript) ->
     currentFile = filename = path.join 'test', file
     code = fs.readFileSync filename
     try
-      CoffeeScript.run code.toString(), {filename}
+      Caffeine.run code.toString(), {filename}
     catch error
       failures.push {filename, error}
   return !failures.length
 
 
-task 'test', 'run the CoffeeScript language test suite', ->
-  runTests CoffeeScript
+task 'test', 'run the Caffeine language test suite', ->
+  runTests Caffeine
 
 
 task 'test:browser', 'run the test suite against the merged browser script', ->
@@ -245,4 +245,4 @@ task 'test:browser', 'run the test suite against the merged browser script', ->
   result = {}
   global.testingBrowser = yes
   (-> eval source).call result
-  runTests result.CoffeeScript
+  runTests result.Caffeine

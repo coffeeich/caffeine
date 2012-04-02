@@ -60,11 +60,11 @@ test "hanging commas and semicolons in argument list", ->
   2
   eq 2, fn(0, 1;)
   # TODO: this test fails (the string compiles), but should it?
-  #throws -> CoffeeScript.compile "fn(0,1,;)"
-  throws -> CoffeeScript.compile "fn(0,1,;;)"
-  throws -> CoffeeScript.compile "fn(0, 1;,)"
-  throws -> CoffeeScript.compile "fn(,0)"
-  throws -> CoffeeScript.compile "fn(;0)"
+  #throws -> Caffeine.compile "fn(0,1,;)"
+  throws -> Caffeine.compile "fn(0,1,;;)"
+  throws -> Caffeine.compile "fn(0, 1;,)"
+  throws -> Caffeine.compile "fn(,0)"
+  throws -> Caffeine.compile "fn(;0)"
 
 
 test "function invocation", ->
@@ -520,7 +520,7 @@ test "#1416: don't omit one 'new' when compiling 'new new fn()()'", ->
   eq obj.b, argNonceB
 
 test "#1840: accessing the `prototype` after function invocation should compile", ->
-  doesNotThrow -> CoffeeScript.compile 'fn()::prop'
+  doesNotThrow -> Caffeine.compile 'fn()::prop'
 
   nonce = {}
   class Test then id: nonce
