@@ -158,6 +158,27 @@ task 'bench', 'quick benchmark of compilation time', ->
   console.log "Compile#{time()} (#{js.length} chars)"
   console.log "total  #{ fmt total }"
 
+  try CoffeeScript = require './../coffee-script/lib/coffee-script'
+
+  return unless CoffeeScript
+
+  console.log "With CoffeeScript"
+  {Rewriter}   = require './../coffee-script/lib/coffee-script/rewriter'
+  co     = sources.map((name) -> fs.readFileSync name).join '\n'
+  fmt    = (ms) -> " #{bold}#{ "   #{ms}".slice -4 }#{reset} ms"
+  total  = 0
+  now    = Date.now()
+  time   = -> total += ms = -(now - now = Date.now()); fmt ms
+  tokens = CoffeeScript.tokens co, rewrite: false
+  console.log "Lex    #{time()} (#{tokens.length} tokens)"
+  tokens = new Rewriter().rewrite tokens
+  console.log "Rewrite#{time()} (#{tokens.length} tokens)"
+  nodes  = CoffeeScript.nodes tokens
+  console.log "Parse  #{time()}"
+  js     = nodes.compile bare: true
+  console.log "Compile#{time()} (#{js.length} chars)"
+  console.log "total  #{ fmt total }"
+
 task 'loc', 'count the lines of source code in the Caffeine compiler', ->
   exec "cat #{ sources.join(' ') } | grep -v '^\\( *#\\|\\s*$\\)' | wc -l | tr -s ' '", (err, stdout) ->
     console.log stdout.trim()
