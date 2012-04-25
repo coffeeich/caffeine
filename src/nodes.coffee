@@ -2151,7 +2151,7 @@ exports.Import = class Import extends Base
     rel = if Import.rootFile is "repl" then "." else Import.rootFile
     relative = (Path.relative FileSystem.realpathSync(rel), file).replace /^(\.\.\/|\.\.\\\\)/, ""
 
-    importKey = relative or Path.basename file
+    importKey = (relative or Path.basename file).replace(/\.coffee$/, "")
 
     unless file of Import.imported
       Import.imported[file] = no
@@ -2166,7 +2166,14 @@ exports.Import = class Import extends Base
       lexer = new Lexer()
 
       code = new Code []
-      code.body.push parser.parse lexer.tokenize FileSystem.readFileSync file, 'utf8'
+
+      try
+        code.body.push parser.parse lexer.tokenize FileSystem.readFileSync file, 'utf8'
+      catch ex
+        if relative
+          ex.filename = relative
+        throw ex
+
       code.body.push new Literal variable
       code.body.makeReturn()
       code = new Value code, [new Access new Literal "call"]

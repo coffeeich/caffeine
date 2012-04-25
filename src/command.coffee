@@ -215,9 +215,7 @@ watch = (source, base) ->
     watchList = []
 
     deepWatch source, watchList, ->
-      for filename in watchList
-        continue if filename of watchers
-
+      for filename in watchList when filename not of watchers
         do (filename) ->
           watchers[filename] = try
               fs.watchFile filename, -> compile filename
