@@ -21,7 +21,7 @@ if require.extensions
     module._compile content, filename
 
 # The current Caffeine version number.
-exports.VERSION = '0.2.2'
+exports.VERSION = '0.2.3'
 
 # Words that cannot be used as identifiers in CoffeeScript code
 exports.RESERVED = RESERVED
