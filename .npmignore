@@ -3,9 +3,12 @@
 .DS_Store
 .git*
 Cakefile
+Rakefile
+readme.md
+.travis.yml
+.npmignore
 documentation/
 examples/
-extras/coffee-script.js
-raw/
+extras/
 src/
 test/
