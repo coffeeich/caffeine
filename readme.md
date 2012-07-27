@@ -1,6 +1,6 @@
 # [![Caffeine](https://github.com/ich/caffeine/raw/gh-pages/documentation/images/logo.png)](https://github.com/ich/caffeine)
 
-  [![Build Status](https://secure.travis-ci.org/ich/caffeine.png?branch=devel)](http://travis-ci.org/ich/caffeine)
+  [![Build Status](https://secure.travis-ci.org/ich/caffeine.png?branch=master)](http://travis-ci.org/ich/caffeine)
 
   Caffeine is a language that extends CoffeeScript.
 
