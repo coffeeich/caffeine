@@ -6,3 +6,4 @@ script: "bin/cake test"
 branches:
   only:
     - master
+    - devel
