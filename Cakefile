@@ -88,13 +88,6 @@ task 'build:parser', 'rebuild the Jison parser (run build first)', ->
   parser = require('./lib/caffeine/grammar').parser
   fs.writeFile 'lib/caffeine/parser.js', parser.generate()
 
-
-task 'build:ultraviolet', 'build and install the Ultraviolet syntax highlighter', ->
-  exec 'plist2syntax ../coffee-script-tmbundle/Syntaxes/CoffeeScript.tmLanguage', (err) ->
-    throw err if err
-    exec 'sudo mv coffeescript.yaml /usr/local/lib/ruby/gems/1.8/gems/ultraviolet-0.10.2/syntax/coffeescript.syntax'
-
-
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = ''
   for name in ['helpers', 'rewriter', 'lexer', 'parser', 'scope', 'nodes', 'caffeine', 'browser']
@@ -128,8 +121,10 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
 
 
 task 'doc:site', 'watch and continually rebuild the documentation for the website', ->
-  exec 'rake doc', (err) ->
-    throw err if err
+  underscore = require 'underscore'
+  exec 'bin/caffeine -bc -o documentation/js/ documentation/coffee/*.coffee'
+  html = underscore.template fs.readFileSync('documentation/index.js.html', 'utf8'), {require}
+  fs.writeFileSync 'index.html', html.trim(), 'utf8'
 
 
 task 'doc:source', 'rebuild the internal documentation', ->
