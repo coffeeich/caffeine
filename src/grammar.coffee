@@ -86,6 +86,7 @@ grammar =
   # is one. Blocks serve as the building blocks of many other rules, making
   # them somewhat circular.
   Expression: [
+    o 'NativeImport'
     o 'Import'
     o 'Package'
     o 'Value'
@@ -291,6 +292,11 @@ grammar =
     o 'CLASS SimpleAssignable Block',                    -> new Class $2, null, $3
     o 'CLASS SimpleAssignable EXTENDS Expression',       -> new Class $2, $4
     o 'CLASS SimpleAssignable EXTENDS Expression Block', -> new Class $2, $4, $5
+  ]
+
+  # Importing a code.
+  NativeImport: [
+    o 'NATIVE IMPORT STRING',                       -> new NativeImport $3
   ]
 
   # Importing a code.

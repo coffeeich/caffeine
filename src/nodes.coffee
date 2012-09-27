@@ -233,7 +233,7 @@ exports.Block = class Block extends Base
         node.front = true
         code = node.compile o
         unless node.isStatement o
-          code = "#{@tab}#{code};"  if code.length isnt 0
+          code = "#{@tab}#{code};".replace /;+$/, ';'  if code.length isnt 0
           code = "#{code}\n"        if node instanceof Literal
       else
         code = node.compile o, LEVEL_LIST
@@ -1154,7 +1154,7 @@ exports.Assign = class Assign extends Base
   compileConditional: (o) ->
     [left, right] = @variable.cacheReference o
     # Disallow conditional assignment of undefined variables.
-    if not left.properties.length and left.base instanceof Literal and 
+    if not left.properties.length and left.base instanceof Literal and
            left.base.value != "this" and not o.scope.check left.base.value
       throw new Error "the variable \"#{left.base.value}\" can't be assigned with #{@context} because it has not been defined."
     if "?" in @context then o.isExistentialEquals = true
@@ -1967,7 +1967,7 @@ exports.Package = class Package extends Base
       Package.defined  = {}
       throw ex
 
-  # Compile package statement and fill Package.packages object to 
+  # Compile package statement and fill Package.packages object to
   # flush packages definitions into top level scope in the end.
   compileNode: (o) ->
     pack = Package.packages
@@ -2059,6 +2059,46 @@ exports.Package = class Package extends Base
 
     "{#{ properties.join ", " }}"
 
+#### Native import
+exports.NativeImport = class NativeImport extends Base
+
+  constructor: (location) ->
+    [q1, location..., q2] = location.split ''
+
+    @location = location.join ''
+
+    @isAbsolute = yes if @location.charAt(0) is '/'
+    @isRelative = yes if @location.charAt(0) is '.'
+
+    @isResolve = yes unless @isAbsolute or @isRelative
+
+  filename: (o={}) ->
+    {location} = @
+
+    dir = Path.dirname Path.resolve FileSystem.realpathSync("."), o.filename
+
+    if @isRelative
+      FileSystem.realpathSync Path.resolve dir, location
+    else if @isAbsolute
+      FileSystem.realpathSync Path.resolve "/#{location}"
+    else if @isResolve
+      search = (pathes) ->
+        file = Path.resolve (pathes.concat location)...
+
+        try
+          FileSystem.realpathSync file
+        catch ex
+          if file is "/#{location}"
+            error = new Error "ENOENT, no such file or directory '#{location}', started in #{dir}"
+            error.code = "ENOENT"
+            throw error
+
+          search pathes.concat ".."
+
+      search [ dir ]
+
+  compileNode: (o) ->
+    multident FileSystem.readFileSync(@filename(o), 'utf8').replace(/\s+$/, ''), o.indent
 
 #### Import
 
@@ -2126,7 +2166,7 @@ exports.Import = class Import extends Base
       return ""
 
     filename = @filename o
-    
+
     args = [ new Literal "'#{ @checkImports o, variable, filename }'"]
 
     importingFile = o.importingFile is filename
