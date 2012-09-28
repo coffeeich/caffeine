@@ -49,6 +49,7 @@ SWITCHES = [
   ['-t', '--tokens',          'print out the tokens that the lexer/rewriter produce']
   ['-v', '--version',         'display the version number']
   ['-w', '--watch',           'watch scripts for changes and rerun commands']
+  ['-z', '--minify',          'minify with UglifyJS']
 ]
 
 # Top-level objects shared by all the functions.
@@ -130,10 +131,13 @@ compileScript = (file, input, base) ->
     else if o.run         then Caffeine.run t.input, t.options
     else if o.join and t.file isnt o.join
       sourceCode[sources.indexOf(t.file)] = t.input
-      compileJoin()
+      output = compileJoin()
+      output = minifyCode output if o.minify
+      output
     else
       time = new Date()
       t.output = Caffeine.compile t.input, t.options
+      t.output = minifyCode t.output if o.minify
       Caffeine.emit 'success', task
       if o.print          then printLine t.output.trim()
       else if o.compile   then writeJs t.file, t.output, base, new Date() - time
@@ -144,6 +148,11 @@ compileScript = (file, input, base) ->
     return printLine err.message + '\x07' if o.watch
     printWarn err instanceof Error and err.stack or "ERROR: #{err}"
     process.exit 1
+
+# Minify code with UglifyJs
+minifyCode = (code) ->
+  {parser, uglify} = require 'uglify-js'
+  uglify.gen_code uglify.ast_squeeze uglify.ast_mangle parser.parse code
 
 # Attach the appropriate listeners to compile scripts incoming over **stdin**,
 # and write them back to **stdout**.
@@ -219,7 +228,7 @@ watch = (source, base) ->
         do (filename) ->
           watchers[filename] = try
               fs.watchFile filename, -> compile filename
-            catch ex 
+            catch ex
               fs.watch filename, -> compile filename
 
   deepWatch = (filename, watchList, callback) ->
