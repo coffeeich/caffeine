@@ -12,7 +12,7 @@
     sudo apt-get update
     sudo apt-get install nodejs
 
-### Install [NMP](http://npmjs.org/)
+### Install [NPM](http://npmjs.org/)
   for Ubuntu (latest stable version from ppa:chris-lea/node.js repository):
 
     sudo apt-get install npm
